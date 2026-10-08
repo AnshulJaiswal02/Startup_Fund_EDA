@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>India Startup Funding Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="./data.js"></script>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #121a2b;
+      --line: #243049;
+      --text: #e8eefc;
+      --muted: #93a0bb;
+      --accent: #5eead4;
+      --accent-2: #60a5fa;
+      --warn: #fbbf24;
+      --pink: #f472b6;
+      --shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: "IBM Plex Sans", sans-serif; }
+    body { min-height: 100vh; }
+    .wrap { max-width: 1280px; margin: 0 auto; padding: 28px 20px 48px; }
+    header {
+      display: flex; justify-content: space-between; gap: 20px; align-items: flex-end;
+      border-bottom: 1px solid var(--line); padding-bottom: 22px; margin-bottom: 22px;
+    }
+    h1 { font-size: 1.7rem; margin: 0 0 6px; letter-spacing: -0.03em; }
+    .sub { color: var(--muted); margin: 0; max-width: 720px; line-height: 1.5; }
+    .badge {
+      font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent);
+      border: 1px solid #2a5f58; background: #10231f; padding: 8px 10px; border-radius: 999px; white-space: nowrap;
+    }
+    .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 18px; }
+    .kpi, .card {
+      background: linear-gradient(180deg, #152036, var(--panel));
+      border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+    }
+    .kpi { padding: 16px 16px 14px; }
+    .kpi span { display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+    .kpi strong { display: block; margin-top: 8px; font-size: 1.35rem; }
+    .grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; }
+    .card { padding: 16px; }
+    h2 { font-size: 0.95rem; margin: 0 0 12px; color: #c9d6f2; }
+    .chart-box { position: relative; height: 320px; }
+    .chart-box.tall { height: 380px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 9px 6px; border-bottom: 1px solid var(--line); }
+    th { color: var(--muted); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .mono { font-family: "IBM Plex Mono", monospace; color: var(--accent); }
+    .insights { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .insight { background: #101827; border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; color: #d5deef; font-size: 14px; line-height: 1.45; }
+    .heat { overflow: auto; }
+    .heat table { min-width: 640px; }
+    .heat td.cell { text-align: right; font-family: "IBM Plex Mono", monospace; font-size: 12px; }
+    footer { margin-top: 22px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 980px) {
+      .kpis, .grid, .insights { grid-template-columns: 1fr; }
+      header { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>India Startup Funding Dashboard</h1>
+        <p class="sub">Interactive view of Indian startup funding rounds from 2015–2020: capital, cities, sectors, stages, investors, and mega-deals after cleaning the public dataset.</p>
+      </div>
+      <div class="badge" id="generated">Disclosed capital view</div>
+    </header>
+
+    <section class="kpis" id="kpis"></section>
+
+    <section class="grid">
+      <article class="card"><h2>1. Funding and deal count by year</h2><div class="chart-box"><canvas id="yearChart"></canvas></div></article>
+      <article class="card"><h2>2. Deal-size buckets (disclosed rounds)</h2><div class="chart-box"><canvas id="bucketChart"></canvas></div></article>
+      <article class="card"><h2>3. Top industries by disclosed funding</h2><div class="chart-box tall"><canvas id="industryChart"></canvas></div></article>
+      <article class="card"><h2>4. Top cities by disclosed funding</h2><div class="chart-box tall"><canvas id="cityChart"></canvas></div></article>
+      <article class="card"><h2>5. Funding stage mix (deal count)</h2><div class="chart-box"><canvas id="stageChart"></canvas></div></article>
+      <article class="card"><h2>6. Most active investors (by deals)</h2><div class="chart-box tall"><canvas id="investorChart"></canvas></div></article>
+    </section>
+
+    <section class="grid" style="margin-top:14px">
+      <article class="card">
+        <h2>7. Top funded startups</h2>
+        <table id="startupTable"></table>
+      </article>
+      <article class="card">
+        <h2>8. Largest disclosed rounds</h2>
+        <table id="megaTable"></table>
+      </article>
+    </section>
+
+    <article class="card heat" style="margin-top:14px">
+      <h2>9. City × industry funding heatmap (top clusters)</h2>
+      <div id="heatmap"></div>
+    </article>
+
+    <section class="insights" id="insights"></section>
+    <footer>Source: startup_funding.csv · Amounts use disclosed USD only · Open this file in a browser after running <code>python prepare_dashboard_data.py</code></footer>
+  </div>
+  <script>
+    const D = window.FUNDING_DATA;
+    const palette = ["#5eead4", "#60a5fa", "#f472b6", "#fbbf24", "#a78bfa", "#34d399", "#fb7185", "#38bdf8", "#c084fc", "#f59e0b", "#4ade80", "#818cf8"];
+    Chart.defaults.color = "#93a0bb";
+    Chart.defaults.borderColor = "#243049";
+    Chart.defaults.font.family = "IBM Plex Sans";
+
+    const k = D.kpis;
+    document.getElementById("generated").textContent = `${k.years} · ${k.deals.toLocaleString()} rounds`;
+    document.getElementById("kpis").innerHTML = [
+      ["Disclosed funding", k.total_funding_label],
+      ["Rounds", k.deals.toLocaleString()],
+      ["Unique startups", k.startups.toLocaleString()],
+      ["Median ticket", k.median_deal_label],
+      ["Mean ticket", k.mean_deal_label],
+    ].map(([label, value]) => `<div class="kpi"><span>${label}</span><strong>${value}</strong></div>`).join("");
+
+    const barOpts = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } };
+
+    new Chart(document.getElementById("yearChart"), {
+      type: "bar",
+      data: {
+        labels: D.yearly.map(r => r.year),
+        datasets: [
+          { type: "bar", label: "Funding USD", data: D.yearly.map(r => r.funding), backgroundColor: "#60a5fa88", borderColor: "#60a5fa", borderWidth: 1, yAxisID: "y" },
+          { type: "line", label: "Deals", data: D.yearly.map(r => r.deals), borderColor: "#5eead4", backgroundColor: "#5eead4", yAxisID: "y1", tension: 0.3 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { ticks: { callback: v => (v/1e9).toFixed(1) + "B" } },
+          y1: { position: "right", grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+
+    new Chart(document.getElementById("bucketChart"), {
+      type: "doughnut",
+      data: { labels: D.buckets.map(r => r.bucket), datasets: [{ data: D.buckets.map(r => r.deals), backgroundColor: palette }] },
+      options: { maintainAspectRatio: false, plugins: { legend: { position: "right" } } }
+    });
+
+    new Chart(document.getElementById("industryChart"), {
+      type: "bar",
+      data: { labels: D.industries.map(r => r.industry), datasets: [{ data: D.industries.map(r => r.funding), backgroundColor: "#34d39999" }] },
+      options: { indexAxis: "y", ...barOpts, scales: { x: { ticks: { callback: v => (v/1e9).toFixed(1) + "B" } } } }
+    });
+
+    new Chart(document.getElementById("cityChart"), {
+      type: "bar",
+      data: { labels: D.cities.map(r => r.city), datasets: [{ data: D.cities.map(r => r.funding), backgroundColor: "#fbbf2499" }] },
+      options: { indexAxis: "y", ...barOpts, scales: { x: { ticks: { callback: v => (v/1e9).toFixed(1) + "B" } } } }
+    });
+
+    new Chart(document.getElementById("stageChart"), {
+      type: "bar",
+      data: { labels: D.stages.map(r => r.stage), datasets: [{ data: D.stages.map(r => r.deals), backgroundColor: "#a78bfa99" }] },
+      options: barOpts
+    });
+
+    new Chart(document.getElementById("investorChart"), {
+      type: "bar",
+      data: { labels: D.investors.map(r => r.investor), datasets: [{ data: D.investors.map(r => r.deals), backgroundColor: "#f472b699" }] },
+      options: { indexAxis: "y", ...barOpts, scales: { x: { beginAtZero: true } } }
+    });
+
+    document.getElementById("startupTable").innerHTML = `<tr><th>Startup</th><th>Industry</th><th>City</th><th>Funding</th></tr>` +
+      D.startups.map(r => `<tr><td>${r.startup}</td><td>${r.industry}</td><td>${r.city}</td><td class="mono">${r.funding_label}</td></tr>`).join("");
+
+    document.getElementById("megaTable").innerHTML = `<tr><th>Date</th><th>Startup</th><th>Stage</th><th>Amount</th></tr>` +
+      D.mega.map(r => `<tr><td>${r.date || "—"}</td><td>${r.startup}</td><td>${r.stage}</td><td class="mono">${r.amount_label}</td></tr>`).join("");
+
+    const heatMap = {};
+    D.heatmap.cells.forEach(c => { heatMap[c.city + "|" + c.industry] = c.amount_usd; });
+    const maxH = Math.max(...Object.values(heatMap), 1);
+    let heatHtml = "<table><tr><th>City</th>" + D.heatmap.industries.map(i => `<th>${i}</th>`).join("") + "</tr>";
+    D.heatmap.cities.forEach(city => {
+      heatHtml += `<tr><td>${city}</td>`;
+      D.heatmap.industries.forEach(ind => {
+        const v = heatMap[city + "|" + ind] || 0;
+        const a = 0.12 + 0.75 * (v / maxH);
+        const label = v ? "$" + (v/1e6).toFixed(0) + "M" : "—";
+        heatHtml += `<td class="cell" style="background:rgba(94,234,212,${a})">${label}</td>`;
+      });
+      heatHtml += "</tr>";
+    });
+    document.getElementById("heatmap").innerHTML = heatHtml + "</table>";
+
+    document.getElementById("insights").innerHTML = D.insights.map((t, i) => `<div class="insight"><strong>Insight ${i + 1}.</strong> ${t}</div>`).join("");
+  </script>
+</body>
+</html>
